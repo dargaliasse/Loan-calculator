@@ -1,0 +1,10 @@
+"""Welcome to my loan calculator 0.01"""
+
+
+print("Enter the loan principal:")
+principal = input()
+print("Enter the monthly payment:")
+payment = input()
+final = int(principal) // int(payment)
+print(f"It will take {final} months to repay the loan")
+
