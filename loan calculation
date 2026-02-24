@@ -1,10 +1,34 @@
 """Welcome to my loan calculator 0.01"""
+import math
 
 
-print("Enter the loan principal:")
-principal = input()
-print("Enter the monthly payment:")
-payment = input()
-final = int(principal) // int(payment)
-print(f"It will take {final} months to repay the loan")
+def loan_calculator():
 
+    def user_input():
+        principal = input("Enter the loan principal")
+        choice = input("What do you want to calculate?")
+        if choice == "m":
+            monthly = input("Enter the monthly payment: ")
+            return principal, monthly , choice
+        elif choice == "p":
+            month_number = input("Enter the number of months")
+            return principal, month_number, choice
+
+    def payments(principal,months):
+        payment = math.ceil(int(principal)/int(months))
+        last_payment = int(principal) - (int(months) - 1) * int(payment)
+        return payment, last_payment
+
+    def required_months(principal, monthly_payment):
+        months_to_pay = math.ceil(int(principal) / int(monthly_payment))
+        return months_to_pay
+
+    principal, calculation_value, calculation_choice = user_input()
+    if calculation_choice == "m":
+        monthly_number = required_months(principal,calculation_value)
+        print(f"It will take {monthly_number} months to repay the loan")
+    elif calculation_choice == "p":
+        payment,last_payment = payments(principal,calculation_value)
+        print(f"Your monthly payment = {payment} and the last payment = {last_payment}")
+
+loan_calculator()
