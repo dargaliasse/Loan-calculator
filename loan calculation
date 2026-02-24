@@ -1,34 +1,83 @@
 """Welcome to my loan calculator 0.01"""
 import math
+import argparse
 
 
 def loan_calculator():
+    known_parameter = argparse.ArgumentParser(
+        description="This program calculate missing loan payment value depending on entered input"
+    )
+    known_parameter.add_argument("-A", "--payment", type=float)
+    known_parameter.add_argument("-P", "--principal", type=float)
+    known_parameter.add_argument("-i", "--interest", type=float, required=True)  # annual percent, e.g. 7.8
+    known_parameter.add_argument("-n", "--periods", type=int)
+    args = known_parameter.parse_args()
 
-    def user_input():
-        principal = input("Enter the loan principal")
-        choice = input("What do you want to calculate?")
-        if choice == "m":
-            monthly = input("Enter the monthly payment: ")
-            return principal, monthly , choice
-        elif choice == "p":
-            month_number = input("Enter the number of months")
-            return principal, month_number, choice
+    # Convert annual interest percent to monthly interest decimal
+    interest = args.interest / (12 * 100)
 
-    def payments(principal,months):
-        payment = math.ceil(int(principal)/int(months))
-        last_payment = int(principal) - (int(months) - 1) * int(payment)
-        return payment, last_payment
+    def periods(principal, interest, payment):
+        # n = ln(A/(A - iP)) / ln(1+i)
+        if payment <= interest * principal:
+            return None
+        return math.log(payment / (payment - interest * principal)) / math.log(1 + interest)
 
-    def required_months(principal, monthly_payment):
-        months_to_pay = math.ceil(int(principal) / int(monthly_payment))
-        return months_to_pay
+    def principal(payment, interest, periods):
+        if interest == 0:
+            return payment * periods
+        return payment / ((interest * (1 + interest) ** periods) / (((1 + interest) ** periods) - 1))
 
-    principal, calculation_value, calculation_choice = user_input()
-    if calculation_choice == "m":
-        monthly_number = required_months(principal,calculation_value)
-        print(f"It will take {monthly_number} months to repay the loan")
-    elif calculation_choice == "p":
-        payment,last_payment = payments(principal,calculation_value)
-        print(f"Your monthly payment = {payment} and the last payment = {last_payment}")
+    def payment(principal, interest, periods):
+        if interest == 0:
+            return principal / periods
+        return principal * (interest * (1 + interest) ** periods) / ((1 + interest) ** periods - 1)
+
+    def format_periods(total_months):
+        years = total_months // 12
+        months = total_months % 12
+
+        year_word = "year" if years == 1 else "years"
+        month_word = "month" if months == 1 else "months"
+
+        if years == 0:
+            return f"{months} {month_word}"
+        elif months == 0:
+            return f"{years} {year_word}"
+        else:
+            return f"{years} {year_word} and {months} {month_word}"
+
+    # Decide what is missing (must have exactly ONE missing among A/P/n)
+    missing = [
+        args.payment is None,
+        args.principal is None,
+        args.periods is None
+    ]
+
+    if missing.count(True) != 1:
+        print("Incorrect parameters")
+        return
+
+    if args.principal is None:
+        p = principal(args.payment, interest, args.periods)
+        if p is None:
+            print("Incorrect parameters")
+            return
+        print(f"Your loan principal = {math.ceil(p)}!")
+
+    elif args.payment is None:
+        a = payment(args.principal, interest, args.periods)
+        if a is None:
+            print("Incorrect parameters")
+            return
+        print(f"Your monthly payment = {math.ceil(a)}!")
+
+    elif args.periods is None:
+        n = periods(args.principal, interest, args.payment)
+        if n is None:
+            print("Incorrect parameters")
+            return
+        n = math.ceil(n)
+        print(f"It will take {format_periods(n)} to repay this loan!")
+
 
 loan_calculator()
