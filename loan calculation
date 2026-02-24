@@ -9,27 +9,40 @@ def loan_calculator():
     )
     known_parameter.add_argument("-A", "--payment", type=float)
     known_parameter.add_argument("-P", "--principal", type=float)
-    known_parameter.add_argument("-i", "--interest", type=float, required=True)  # annual percent, e.g. 7.8
+    known_parameter.add_argument("-i", "--interest", type=float)  # NOT required; we validate ourselves
     known_parameter.add_argument("-n", "--periods", type=int)
+    known_parameter.add_argument("-T", "--type", type=str)
     args = known_parameter.parse_args()
+
+    # Basic validation: type and interest must exist and be valid
+    if args.type not in ("annuity", "diff"):
+        print("Incorrect parameters")
+        return
+    if args.interest is None or args.interest <= 0:
+        print("Incorrect parameters")
+        return
+    if args.principal is not None and args.principal <= 0:
+        print("Incorrect parameters")
+        return
+    if args.payment is not None and args.payment <= 0:
+        print("Incorrect parameters")
+        return
+    if args.periods is not None and args.periods <= 0:
+        print("Incorrect parameters")
+        return
 
     # Convert annual interest percent to monthly interest decimal
     interest = args.interest / (12 * 100)
 
     def periods(principal, interest, payment):
-        # n = ln(A/(A - iP)) / ln(1+i)
         if payment <= interest * principal:
             return None
         return math.log(payment / (payment - interest * principal)) / math.log(1 + interest)
 
     def principal(payment, interest, periods):
-        if interest == 0:
-            return payment * periods
         return payment / ((interest * (1 + interest) ** periods) / (((1 + interest) ** periods) - 1))
 
     def payment(principal, interest, periods):
-        if interest == 0:
-            return principal / periods
         return principal * (interest * (1 + interest) ** periods) / ((1 + interest) ** periods - 1)
 
     def format_periods(total_months):
@@ -46,38 +59,62 @@ def loan_calculator():
         else:
             return f"{years} {year_word} and {months} {month_word}"
 
-    # Decide what is missing (must have exactly ONE missing among A/P/n)
-    missing = [
-        args.payment is None,
-        args.principal is None,
-        args.periods is None
-    ]
+    def annuity_payment():
+        missing = [
+            args.payment is None,
+            args.principal is None,
+            args.periods is None
+        ]
 
-    if missing.count(True) != 1:
-        print("Incorrect parameters")
-        return
-
-    if args.principal is None:
-        p = principal(args.payment, interest, args.periods)
-        if p is None:
+        if missing.count(True) != 1:
             print("Incorrect parameters")
             return
-        print(f"Your loan principal = {math.ceil(p)}!")
 
-    elif args.payment is None:
-        a = payment(args.principal, interest, args.periods)
-        if a is None:
+        if args.principal is None:
+            p = principal(args.payment, interest, args.periods)
+            p_ceil = math.ceil(p)
+            print(f"Your loan principal = {p_ceil}!")
+            overpayment = int(args.payment * args.periods - p_ceil)
+            print(f"Overpayment = {overpayment}")
+
+        elif args.payment is None:
+            a = payment(args.principal, interest, args.periods)
+            a_ceil = math.ceil(a)
+            print(f"Your monthly payment = {a_ceil}!")
+            overpayment = int(a_ceil * args.periods - args.principal)
+            print(f"Overpayment = {overpayment}")
+
+        elif args.periods is None:
+            n = periods(args.principal, interest, args.payment)
+            if n is None:
+                print("Incorrect parameters")
+                return
+            n_ceil = math.ceil(n)
+            print(f"It will take {format_periods(n_ceil)} to repay this loan!")
+            overpayment = int(n_ceil * args.payment - args.principal)
+            print(f"Overpayment = {overpayment}")
+
+    def differential_payment(principal, period, interest):
+        total = 0
+        for m in range(1, period + 1):
+            current_month_payment = (
+                principal / period
+                + interest * (principal - principal * (m - 1) / period)
+            )
+            current_month_payment = math.ceil(current_month_payment)
+            total += current_month_payment
+            print(f"Month {m}: payment is {current_month_payment}")
+        print(f"\nOverpayment = {int(total - principal)}")
+
+    if args.type == "annuity":
+        annuity_payment()
+
+    elif args.type == "diff":
+        # For diff: payment must NOT be provided; principal and periods must be provided
+        if args.payment is not None or args.principal is None or args.periods is None:
             print("Incorrect parameters")
             return
-        print(f"Your monthly payment = {math.ceil(a)}!")
-
-    elif args.periods is None:
-        n = periods(args.principal, interest, args.payment)
-        if n is None:
-            print("Incorrect parameters")
-            return
-        n = math.ceil(n)
-        print(f"It will take {format_periods(n)} to repay this loan!")
+        differential_payment(args.principal, args.periods, interest)
 
 
 loan_calculator()
